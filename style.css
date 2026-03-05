@@ -1,6 +1,63 @@
-body { margin: 0; padding: 0; overflow: hidden; background: #70c5ce; font-family: 'Arial', sans-serif; }
-#ui { 
-    position: absolute; top: 20px; left: 20px; color: white; z-index: 10; 
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.5); font-size: 20px;
+:root {
+    --bg-color: #70c5ce;
+    --text-color: #ffffff;
+    --btn-color: #4caf50;
+    --modal-bg: #ffffff;
 }
-canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+
+body, html {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background-color: var(--bg-color);
+    font-family: sans-serif;
+}
+
+#app { width: 100%; height: 100%; position: relative; }
+
+.screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 10;
+}
+
+.hidden { display: none !important; }
+
+/* Меню та кнопки */
+.stats-bar {
+    position: absolute; top: 20px; width: 90%;
+    display: flex; justify-content: space-between;
+    font-size: 1.2rem; color: white; text-shadow: 2px 2px #000;
+}
+
+.menu-buttons { display: flex; flex-direction: column; gap: 15px; width: 70%; }
+
+button {
+    padding: 15px; border-radius: 15px; border: none;
+    background: white; font-weight: bold; font-size: 1rem;
+    cursor: pointer; box-shadow: 0 4px #999;
+}
+
+button:active { transform: translateY(2px); box-shadow: 0 2px #999; }
+
+.btn-play { background: var(--btn-color); color: white; font-size: 1.4rem; }
+.btn-ads { background: #ff9800; color: white; }
+
+/* Гра */
+canvas { display: block; width: 100vw; height: 100vh; }
+#game-ui {
+    position: absolute; top: 20px; left: 20px;
+    font-size: 1.5rem; color: white; text-shadow: 2px 2px #000;
+}
+
+/* Модальне вікно */
+.modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.modal-content {
+    background: var(--modal-bg); width: 80%; padding: 25px;
+    border-radius: 20px; position: relative; text-align: center;
+}
+.close-btn { position: absolute; top: 10px; right: 10px; background: none; box-shadow: none; font-size: 1.5rem; }
