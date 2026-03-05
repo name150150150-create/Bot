@@ -93,87 +93,121 @@ let menuFrames = 0;
 
 function startMenuAnimation() {
     const c   = document.getElementById("menuBg");
-    const ctx = c.getContext("2d");
+    const ctx2 = c.getContext("2d");
     c.width   = window.innerWidth;
     c.height  = window.innerHeight;
 
     cancelAnimationFrame(menuRafId);
-    const stars = Array.from({ length: 80 }, () => ({
-        x: Math.random() * c.width,
-        y: Math.random() * c.height * .8,
-        r: Math.random() * 1.5 + .3,
-        phase: Math.random() * Math.PI * 2
+
+    const stars = Array.from({ length: 100 }, (_, i) => ({
+        x: (i * 173.7 + 31) % c.width,
+        y: (i * 97.3  + 17) % (c.height * .82),
+        r: .4 + (i % 5) * .28,
+        phase: i * .61,
+        color: i % 9 === 0 ? "#aaddff" : i % 7 === 0 ? "#ffddaa" : "#ffffff"
     }));
+
+    const nebulas = [
+        { x: c.width * .25, y: c.height * .18, r: 80,  hue: 220, a: .08 },
+        { x: c.width * .7,  y: c.height * .32, r: 60,  hue: 280, a: .07 },
+        { x: c.width * .5,  y: c.height * .55, r: 100, hue: 200, a: .06 },
+    ];
+
+    const menuShoots = [];
+    let mShootTimer = 0;
 
     function loop() {
         menuFrames++;
-        ctx.clearRect(0, 0, c.width, c.height);
+        mShootTimer++;
+        ctx2.clearRect(0, 0, c.width, c.height);
 
-        // sky
-        const sky = ctx.createLinearGradient(0, 0, 0, c.height);
-        sky.addColorStop(0,   "#060318");
-        sky.addColorStop(.55, "#100840");
-        sky.addColorStop(.85, "#2a1060");
-        sky.addColorStop(1,   "#0a0520");
-        ctx.fillStyle = sky;
-        ctx.fillRect(0, 0, c.width, c.height);
+        /* ── Deep space sky ── */
+        const sky = ctx2.createLinearGradient(0, 0, 0, c.height);
+        sky.addColorStop(0,   "#00010d");
+        sky.addColorStop(.4,  "#010620");
+        sky.addColorStop(.75, "#020b30");
+        sky.addColorStop(1,   "#030d3a");
+        ctx2.fillStyle = sky;
+        ctx2.fillRect(0, 0, c.width, c.height);
 
-        // stars
+        /* ── Nebulas ── */
+        nebulas.forEach(n => {
+            const ng = ctx2.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r);
+            ng.addColorStop(0,   `hsla(${n.hue},80%,55%,${n.a * 2})`);
+            ng.addColorStop(.5,  `hsla(${n.hue},70%,40%,${n.a})`);
+            ng.addColorStop(1,   "transparent");
+            ctx2.fillStyle = ng;
+            ctx2.beginPath(); ctx2.arc(n.x, n.y, n.r, 0, Math.PI * 2); ctx2.fill();
+        });
+
+        /* ── Stars ── */
         stars.forEach(s => {
-            const a = .4 + .6 * Math.sin(menuFrames * .02 + s.phase);
-            ctx.globalAlpha = a;
-            ctx.fillStyle = "#fff";
-            ctx.beginPath();
-            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-            ctx.fill();
+            ctx2.globalAlpha = .3 + .7 * Math.abs(Math.sin(menuFrames * .016 + s.phase));
+            ctx2.fillStyle   = s.color;
+            ctx2.beginPath(); ctx2.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx2.fill();
         });
-        ctx.globalAlpha = 1;
+        ctx2.globalAlpha = 1;
 
-        // nebula blobs
-        [[c.width * .3, c.height * .2, 120, "#7711cc"],
-         [c.width * .75, c.height * .35, 90, "#3311cc"]].forEach(([x, y, r, col]) => {
-            const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-            g.addColorStop(0, col + "44");
-            g.addColorStop(1, "transparent");
-            ctx.fillStyle = g;
-            ctx.beginPath();
-            ctx.arc(x, y, r, 0, Math.PI * 2);
-            ctx.fill();
-        });
+        /* ── Saturn planet ── */
+        const px = c.width * .78, py = c.height * .14, pr = c.width * .065;
+        const pg = ctx2.createRadialGradient(px - pr * .3, py - pr * .3, pr * .1, px, py, pr);
+        pg.addColorStop(0,   "#fff4cc"); pg.addColorStop(.5, "#ddaa44"); pg.addColorStop(1, "#665500");
+        ctx2.fillStyle = pg;
+        ctx2.beginPath(); ctx2.arc(px, py, pr, 0, Math.PI * 2); ctx2.fill();
+        ctx2.save();
+        ctx2.globalAlpha = .6;
+        ctx2.strokeStyle = "#ddaa44"; ctx2.lineWidth = pr * .3;
+        ctx2.beginPath(); ctx2.ellipse(px, py, pr * 1.85, pr * .4, -.25, 0, Math.PI * 2); ctx2.stroke();
+        ctx2.restore();
 
-        // ground
-        const groundY = c.height - 55;
-        const groundG = ctx.createLinearGradient(0, groundY, 0, c.height);
-        groundG.addColorStop(0, "#1a0a40");
-        groundG.addColorStop(1, "#0a0520");
-        ctx.fillStyle = groundG;
-        ctx.fillRect(0, groundY, c.width, 55);
+        /* ── Small planet ── */
+        const p2x = c.width * .14, p2y = c.height * .22, p2r = c.width * .035;
+        const p2g = ctx2.createRadialGradient(p2x - p2r * .3, p2y - p2r * .3, p2r * .1, p2x, p2y, p2r);
+        p2g.addColorStop(0, "#aaffcc"); p2g.addColorStop(.5, "#33aa66"); p2g.addColorStop(1, "#114422");
+        ctx2.fillStyle = p2g;
+        ctx2.beginPath(); ctx2.arc(p2x, p2y, p2r, 0, Math.PI * 2); ctx2.fill();
 
-        // neon ground line
-        ctx.shadowColor = "#7700ff";
-        ctx.shadowBlur  = 14;
-        ctx.strokeStyle = "#aa44ff";
-        ctx.lineWidth   = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, groundY);
-        ctx.lineTo(c.width, groundY);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-
-        // animated perspective grid
-        ctx.globalAlpha = .25;
-        ctx.strokeStyle = "#7700ff";
-        ctx.lineWidth   = 1;
-        const seg = 32;
-        const off = (menuFrames * 1.2) % seg;
-        for (let x = -off; x < c.width; x += seg) {
-            ctx.beginPath();
-            ctx.moveTo(x, groundY);
-            ctx.lineTo(x + 28, c.height);
-            ctx.stroke();
+        /* ── Shooting stars ── */
+        if (mShootTimer > 180) {
+            mShootTimer = 0;
+            menuShoots.push({
+                x: Math.random() * c.width * .7, y: Math.random() * c.height * .4,
+                vx: 4 + Math.random() * 3, vy: 1.5 + Math.random() * 1.5,
+                life: 35, maxLife: 35
+            });
         }
-        ctx.globalAlpha = 1;
-        ctx.shadowBlur  = 0;
+        for (let i = menuShoots.length - 1; i >= 0; i--) {
+            const s = menuShoots[i];
+            s.x += s.vx; s.y += s.vy; s.life--;
+            if (s.life <= 0) { menuShoots.splice(i, 1); continue; }
+            const a2 = s.life / s.maxLife;
+            const sg2 = ctx2.createLinearGradient(s.x, s.y, s.x - s.vx * 10, s.y - s.vy * 10);
+            sg2.addColorStop(0,   `rgba(255,255,255,${a2})`);
+            sg2.addColorStop(1,   "transparent");
+            ctx2.strokeStyle = sg2; ctx2.lineWidth = 1.5 * a2;
+            ctx2.beginPath(); ctx2.moveTo(s.x, s.y); ctx2.lineTo(s.x - s.vx * 10, s.y - s.vy * 10); ctx2.stroke();
+        }
+
+        /* ── Ground ── */
+        const groundY = c.height - 60;
+        const gg = ctx2.createLinearGradient(0, groundY, 0, c.height);
+        gg.addColorStop(0, "#1a1424"); gg.addColorStop(1, "#0a0812");
+        ctx2.fillStyle = gg; ctx2.fillRect(0, groundY, c.width, 60);
+
+        // rocky silhouette
+        ctx2.fillStyle = "#1a1424";
+        ctx2.beginPath(); ctx2.moveTo(0, groundY);
+        const rp = [0,.6,.09,.3,.18,.7,.27,.4,.36,.8,.45,.35,.54,.65,.63,.28,.72,.72,.81,.42,.90,.68,1,.4];
+        for (let i = 0; i < rp.length; i += 2)
+            ctx2.lineTo(rp[i] * c.width, groundY - rp[i+1] * 14);
+        ctx2.lineTo(c.width, groundY); ctx2.closePath(); ctx2.fill();
+
+        // horizon glow
+        ctx2.save();
+        ctx2.shadowColor = "#4488ff"; ctx2.shadowBlur = 24;
+        ctx2.strokeStyle = "#6699ff"; ctx2.lineWidth = 2;
+        ctx2.beginPath(); ctx2.moveTo(0, groundY); ctx2.lineTo(c.width, groundY); ctx2.stroke();
+        ctx2.restore();
 
         menuRafId = requestAnimationFrame(loop);
     }
@@ -238,122 +272,319 @@ function makePipeCapCanvas(w, h) {
    DRAW FUNCTIONS
    ════════════════════ */
 
-/* Sky + ground */
+/* ════════════════════════════════
+   BACKGROUND — DEEP SPACE
+   ════════════════════════════════ */
+
+// Pre-built star field (stable positions, no per-frame random)
+const STAR_FIELD = Array.from({ length: 120 }, (_, i) => ({
+    x:     (i * 173.7 + 31) % 1,   // 0-1 normalized
+    y:     (i * 97.3  + 17) % 1,
+    r:     .4 + (i % 5) * .28,
+    phase: i * .61,
+    color: i % 9 === 0 ? "#aaddff" : i % 7 === 0 ? "#ffddaa" : "#ffffff"
+}));
+
+// Nebula clouds (static per session, rebuilt on initGame)
+let NEBULAS = [];
+function buildNebulas() {
+    NEBULAS = Array.from({ length: 5 }, (_, i) => ({
+        x:     (.1 + (i * .21)) % 1,
+        y:     .05 + (i * .18) % .65,
+        r:     55 + i * 22,
+        hue:   [200, 280, 320, 180, 260][i],
+        alpha: .06 + i * .012
+    }));
+}
+
+// Planets (static per session)
+let PLANETS = [];
+function buildPlanets() {
+    PLANETS = [
+        { xN: .78, yN: .12, r: 22, hue: 38,  ring: true  },
+        { xN: .14, yN: .22, r: 13, hue: 160, ring: false },
+        { xN: .62, yN: .06, r:  8, hue: 320, ring: false },
+    ];
+}
+
+// Shooting stars
+let SHOOTS = [];
+let lastShootFrame = -300;
+
 function drawBg() {
-    const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    sky.addColorStop(0,    "#06031a");
-    sky.addColorStop(.55,  "#100840");
-    sky.addColorStop(.85,  "#22104a");
-    sky.addColorStop(1,    "#0a0520");
+    const W = canvas.width, H = canvas.height;
+    const groundY = H - GROUND;
+
+    /* ── Deep space base ── */
+    const sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0,    "#00010d");
+    sky.addColorStop(.4,   "#010620");
+    sky.addColorStop(.75,  "#020b30");
+    sky.addColorStop(1,    "#030d3a");
     ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, W, H);
 
-    // stars (deterministic, no loop object)
-    for (let i = 0; i < 55; i++) {
-        const sx = (i * 137.5 + 40) % canvas.width;
-        const sy = (i * 97.3  + 20) % (canvas.height * .7);
-        ctx.globalAlpha = .35 + .55 * Math.abs(Math.sin(frames * .018 + i));
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(sx | 0, sy | 0, i % 3 === 0 ? 2 : 1, i % 3 === 0 ? 2 : 1);
-    }
-    ctx.globalAlpha = 1;
-
-    // nebula
-    CLOUDS.forEach(c => {
-        c.x -= c.spd;
-        if (c.x + c.r < 0) c.x = canvas.width + c.r;
-        const ng = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
-        ng.addColorStop(0, `rgba(120,40,220,${c.alpha})`);
-        ng.addColorStop(1, "transparent");
+    /* ── Nebulas ── */
+    NEBULAS.forEach(n => {
+        const nx = n.x * W, ny = n.y * H;
+        const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, n.r * (W / 400));
+        ng.addColorStop(0,   `hsla(${n.hue},80%,55%,${n.alpha * 2})`);
+        ng.addColorStop(.5,  `hsla(${n.hue},70%,40%,${n.alpha})`);
+        ng.addColorStop(1,   "transparent");
         ctx.fillStyle = ng;
         ctx.beginPath();
-        ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+        ctx.arc(nx, ny, n.r * (W / 400), 0, Math.PI * 2);
         ctx.fill();
     });
 
-    // ground
-    const groundY = canvas.height - GROUND;
-    const gg = ctx.createLinearGradient(0, groundY, 0, canvas.height);
-    gg.addColorStop(0, "#1a0a40");
-    gg.addColorStop(1, "#060318");
-    ctx.fillStyle = gg;
-    ctx.fillRect(0, groundY, canvas.width, GROUND);
+    /* ── Stars (twinkle) ── */
+    STAR_FIELD.forEach((s, i) => {
+        const sx = s.x * W;
+        const sy = s.y * groundY * 1.05;
+        if (sy > groundY) return;
+        const alpha = .3 + .7 * Math.abs(Math.sin(frames * .014 + s.phase));
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle   = s.color;
+        ctx.beginPath();
+        ctx.arc(sx, sy, s.r, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.globalAlpha = 1;
 
-    // neon line
+    /* ── Shooting stars ── */
+    if (frames - lastShootFrame > 220 + (Math.random() * 180 | 0)) {
+        lastShootFrame = frames;
+        SHOOTS.push({
+            x: Math.random() * W * .8, y: Math.random() * groundY * .4,
+            vx: 4 + Math.random() * 3, vy: 1.5 + Math.random() * 2,
+            life: 35, maxLife: 35
+        });
+    }
+    for (let i = SHOOTS.length - 1; i >= 0; i--) {
+        const s = SHOOTS[i];
+        s.x += s.vx; s.y += s.vy; s.life--;
+        if (s.life <= 0 || s.x > W || s.y > groundY) { SHOOTS.splice(i, 1); continue; }
+        const a = s.life / s.maxLife;
+        const grad = ctx.createLinearGradient(s.x, s.y, s.x - s.vx * 10, s.y - s.vy * 10);
+        grad.addColorStop(0,   `rgba(255,255,255,${a})`);
+        grad.addColorStop(1,   "transparent");
+        ctx.strokeStyle = grad;
+        ctx.lineWidth   = 1.5 * a;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x - s.vx * 10, s.y - s.vy * 10);
+        ctx.stroke();
+    }
+
+    /* ── Planets ── */
+    PLANETS.forEach(p => {
+        const px = p.xN * W, py = p.yN * groundY;
+        const r  = p.r * (W / 390);
+        ctx.save();
+        // planet glow
+        const glow = ctx.createRadialGradient(px, py, r * .4, px, py, r * 2.2);
+        glow.addColorStop(0,   `hsla(${p.hue},70%,55%,.14)`);
+        glow.addColorStop(1,   "transparent");
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(px, py, r * 2.2, 0, Math.PI * 2); ctx.fill();
+
+        // planet body
+        const pg = ctx.createRadialGradient(px - r * .35, py - r * .35, r * .1, px, py, r);
+        pg.addColorStop(0,   `hsl(${p.hue},60%,75%)`);
+        pg.addColorStop(.5,  `hsl(${p.hue},55%,45%)`);
+        pg.addColorStop(1,   `hsl(${p.hue},50%,20%)`);
+        ctx.fillStyle = pg;
+        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
+
+        // ring (Saturn-style)
+        if (p.ring) {
+            ctx.globalAlpha = .55;
+            ctx.strokeStyle = `hsl(${p.hue},60%,65%)`;
+            ctx.lineWidth   = r * .28;
+            ctx.beginPath();
+            ctx.ellipse(px, py, r * 1.9, r * .45, -.3, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.restore();
+    });
+
+    /* ── Asteroid belt / ground ── */
+    const asteroidY = groundY;
+    // dark rocky surface
+    const groundG = ctx.createLinearGradient(0, asteroidY, 0, H);
+    groundG.addColorStop(0,   "#1a1424");
+    groundG.addColorStop(.3,  "#120e1c");
+    groundG.addColorStop(1,   "#0a0812");
+    ctx.fillStyle = groundG;
+    ctx.fillRect(0, asteroidY, W, GROUND);
+
+    // rocky surface silhouette
+    ctx.fillStyle = "#1a1424";
+    ctx.beginPath();
+    ctx.moveTo(0, asteroidY);
+    const rockPts = [0,.6, .08,.3, .16,.7, .24,.4, .33,.8, .41,.35,
+                     .5,.65, .58,.28, .67,.72, .75,.42, .83,.68, .92,.3, 1,.55];
+    for (let i = 0; i < rockPts.length; i += 2) {
+        ctx.lineTo(rockPts[i] * W, asteroidY - rockPts[i+1] * 14);
+    }
+    ctx.lineTo(W, asteroidY); ctx.closePath(); ctx.fill();
+
+    // neon horizon glow
     ctx.save();
-    ctx.shadowColor = "#7700ff";
-    ctx.shadowBlur  = 12;
-    ctx.strokeStyle = "#aa44ff";
+    ctx.shadowColor = "#4488ff";
+    ctx.shadowBlur  = 28;
+    ctx.strokeStyle = "#6699ff";
     ctx.lineWidth   = 2;
     ctx.beginPath();
-    ctx.moveTo(0, groundY);
-    ctx.lineTo(canvas.width, groundY);
+    ctx.moveTo(0, asteroidY); ctx.lineTo(W, asteroidY);
     ctx.stroke();
     ctx.restore();
 
-    // perspective grid on ground
+    // subtle space dust streaks on ground
     ctx.save();
-    ctx.globalAlpha = .22;
-    ctx.strokeStyle = "#7700ff";
+    ctx.globalAlpha = .18;
+    ctx.strokeStyle = "#4466cc";
     ctx.lineWidth   = 1;
-    const seg = 30, off2 = (frames * speed * .6) % seg;
-    for (let x = -off2; x < canvas.width; x += seg) {
+    const dustOff = (frames * speed * .4) % 50;
+    for (let x = -dustOff; x < W; x += 50) {
         ctx.beginPath();
-        ctx.moveTo(x, groundY);
-        ctx.lineTo(x + 25, canvas.height);
+        ctx.moveTo(x, asteroidY + 8);
+        ctx.lineTo(x + 35, H);
         ctx.stroke();
     }
     ctx.restore();
+    ctx.shadowBlur = 0;
 }
 
-/* Pipe */
+/* ════════════════════════════════
+   PIPE — ASTEROID ROCK PILLARS
+   ════════════════════════════════ */
 function drawPipe(x, topH, bottomY) {
-    const W   = PIPE_W;
-    const capH = 22, capX = x - 6, capW = W + 12;
-
-    const bodyGrad = ctx.createLinearGradient(x, 0, x + W, 0);
-    bodyGrad.addColorStop(0,   "#0d3d17");
-    bodyGrad.addColorStop(.25, "#2da844");
-    bodyGrad.addColorStop(.55, "#3dcc5a");
-    bodyGrad.addColorStop(.8,  "#2da844");
-    bodyGrad.addColorStop(1,   "#0d3d17");
+    const W    = PIPE_W;
+    const capH = 28;
+    const capX = x - 9;
+    const capW = W + 18;
 
     ctx.save();
-    ctx.shadowColor = "#00ff66";
-    ctx.shadowBlur  = 8;
 
-    // ── top pipe body
-    ctx.fillStyle = bodyGrad;
-    ctx.fillRect(x, 0, W, topH - capH);
+    /* ── Helper: draw one pillar segment ── */
+    function drawRockBody(rx, ry, rw, rh) {
+        if (rh <= 0) return;
+        const bg = ctx.createLinearGradient(rx, 0, rx + rw, 0);
+        bg.addColorStop(0,    "#1a0e2e");
+        bg.addColorStop(.18,  "#3a2060");
+        bg.addColorStop(.42,  "#6a3aaa");
+        bg.addColorStop(.62,  "#4a2888");
+        bg.addColorStop(.82,  "#2d1655");
+        bg.addColorStop(1,    "#130828");
+        ctx.fillStyle = bg;
+        ctx.fillRect(rx, ry, rw, rh);
 
-    // ── top pipe cap
-    const capGrad = ctx.createLinearGradient(capX, 0, capX + capW, 0);
-    capGrad.addColorStop(0,   "#0d3d17");
-    capGrad.addColorStop(.2,  "#1a6b2a");
-    capGrad.addColorStop(.45, "#4ddc6a");
-    capGrad.addColorStop(.7,  "#2da844");
-    capGrad.addColorStop(1,   "#0d3d17");
-    ctx.fillStyle = capGrad;
-    ctx.fillRect(capX, topH - capH, capW, capH);
+        // crack lines — give rocky texture
+        ctx.globalAlpha = .22;
+        ctx.strokeStyle = "#aa66ff";
+        ctx.lineWidth   = 1;
+        [[.28, .45], [.6, .72]].forEach(([t1, t2]) => {
+            ctx.beginPath();
+            ctx.moveTo(rx + rw * t1, ry);
+            ctx.lineTo(rx + rw * t2, ry + rh * .45);
+            ctx.lineTo(rx + rw * (t2 - .12), ry + rh);
+            ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
 
-    // ── bottom pipe cap
-    ctx.fillStyle = capGrad;
-    ctx.fillRect(capX, bottomY, capW, capH);
+        // shine strip
+        ctx.globalAlpha = .18;
+        ctx.fillStyle   = "#cc99ff";
+        ctx.fillRect(rx + 7, ry, 4, rh);
+        ctx.globalAlpha = 1;
+    }
 
-    // ── bottom pipe body
-    ctx.fillStyle = bodyGrad;
-    ctx.fillRect(x, bottomY + capH, W, canvas.height - (bottomY + capH));
+    /* ── Helper: draw cap + crystal spikes ── */
+    function drawCap(cx, cy, cw, ch, flipped) {
+        ctx.shadowColor = "#bb44ff";
+        ctx.shadowBlur  = 18;
 
-    // ── shine strips
-    ctx.shadowBlur  = 0;
-    ctx.globalAlpha = .25;
-    ctx.fillStyle   = "#ffffff";
-    ctx.fillRect(x + 6, 0, 5, topH - capH);
-    ctx.fillRect(x + 6, bottomY + capH, 5, canvas.height - (bottomY + capH));
+        const cg = ctx.createLinearGradient(cx, 0, cx + cw, 0);
+        cg.addColorStop(0,    "#160826");
+        cg.addColorStop(.2,   "#5522aa");
+        cg.addColorStop(.48,  "#cc88ff");
+        cg.addColorStop(.72,  "#6633bb");
+        cg.addColorStop(1,    "#160826");
+        ctx.fillStyle = cg;
+
+        // beveled cap
+        const bev = 5;
+        ctx.beginPath();
+        if (!flipped) {
+            ctx.moveTo(cx + bev, cy);
+            ctx.lineTo(cx + cw - bev, cy);
+            ctx.lineTo(cx + cw, cy + ch);
+            ctx.lineTo(cx, cy + ch);
+        } else {
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + cw, cy);
+            ctx.lineTo(cx + cw - bev, cy + ch);
+            ctx.lineTo(cx + bev, cy + ch);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // crystal spikes
+        const spikeDir = flipped ? -1 : 1;
+        const spikeBase = flipped ? cy : cy;
+        const spikeTip  = flipped ? cy - 1 : cy;  // direction of spikes
+        ctx.fillStyle   = "#eeccff";
+        ctx.shadowColor = "#dd99ff";
+        ctx.shadowBlur  = 12;
+
+        const sCount = 6;
+        const sw2 = cw / sCount;
+        const spikeHeights = [10, 15, 8, 18, 11, 13];
+        for (let s = 0; s < sCount; s++) {
+            const sx  = cx + s * sw2;
+            const sh2 = spikeHeights[s % spikeHeights.length];
+            const tipY = flipped ? cy - sh2 : cy - sh2;
+            ctx.beginPath();
+            ctx.moveTo(sx,         cy);
+            ctx.lineTo(sx + sw2 * .5, cy - sh2 * spikeDir);
+            ctx.lineTo(sx + sw2,   cy);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // glowing rune dots along cap center
+        ctx.shadowBlur = 8;
+        [.2, .5, .8].forEach(t => {
+            const dotX = cx + cw * t;
+            const dotY = cy + ch * .5;
+            const pulse = .5 + .5 * Math.sin(frames * .07 + t * 10);
+            ctx.globalAlpha = .5 + pulse * .5;
+            ctx.fillStyle   = "#ff99ff";
+            ctx.beginPath();
+            ctx.arc(dotX, dotY, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur  = 0;
+    }
+
+    /* ── Draw ── */
+    ctx.shadowColor = "#8833cc";
+    ctx.shadowBlur  = 10;
+
+    // top body
+    drawRockBody(x, 0, W, topH - capH);
+    // top cap (spikes point UP = not flipped)
+    drawCap(capX, topH - capH, capW, capH, false);
+
+    // bottom cap (spikes point DOWN = flipped)
+    drawCap(capX, bottomY, capW, capH, true);
+    // bottom body
+    drawRockBody(x, bottomY + capH, W, canvas.height - (bottomY + capH));
 
     ctx.restore();
 }
-
 /* Coin – spinning illusion */
 function drawCoin(x, y, frame) {
     const scaleX = Math.abs(Math.cos(frame * .09));
@@ -393,68 +624,145 @@ function drawCoin(x, y, frame) {
     ctx.restore();
 }
 
-/* Bird */
+/* ════════════════════════════════
+   BIRD — ROCKET SHIP 🚀
+   ════════════════════════════════ */
 function drawBird(b) {
     ctx.save();
     ctx.translate(b.x + 20, b.y + 15);
 
-    // rotation
-    const angle = Math.min(Math.max(b.vel * .06, -.5), 1.1);
+    // tilt with velocity
+    const angle = Math.min(Math.max(b.vel * .055, -.5), 1.1);
     ctx.rotate(angle);
 
-    // glow
-    ctx.shadowColor = "#ffe844";
-    ctx.shadowBlur  = 22;
+    /* ── Engine exhaust trail ── */
+    const exhaustFlicker = .6 + .4 * Math.sin(frames * .55);
+    for (let t = 6; t >= 1; t--) {
+        const tx   = -t * 6.5;
+        const ty   = Math.sin(frames * .42 + t) * 2.2;
+        const tr   = (7 - t) * exhaustFlicker;
+        const ta   = (1 - t / 7) * .75;
+        const eg   = ctx.createRadialGradient(tx, ty, 0, tx, ty, tr + 2);
+        // core: white-blue → orange rim → transparent
+        eg.addColorStop(0,   `rgba(200,230,255,${ta})`);
+        eg.addColorStop(.3,  `rgba(80,160,255,${ta * .9})`);
+        eg.addColorStop(.65, `rgba(255,100,20,${ta * .55})`);
+        eg.addColorStop(1,   "transparent");
+        ctx.fillStyle = eg;
+        ctx.beginPath();
+        ctx.arc(tx, ty, tr + 4, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
-    // wing (flap animation)
-    const wingA = Math.sin(b.wingT) * .45;
-    ctx.save();
-    ctx.rotate(-wingA);
-    ctx.fillStyle = "#e08800";
+    /* ── Side fins ── */
+    ctx.shadowColor = "#4488ff";
+    ctx.shadowBlur  = 8;
+    // left fin (bottom)
+    const finG = ctx.createLinearGradient(0, 4, -10, 14);
+    finG.addColorStop(0,   "#335588");
+    finG.addColorStop(1,   "#112244");
+    ctx.fillStyle = finG;
     ctx.beginPath();
-    ctx.ellipse(-5, 4, 11, 6, -.15, 0, Math.PI * 2);
+    ctx.moveTo(-2, 6);
+    ctx.lineTo(-12, 14);
+    ctx.lineTo(-2, 11);
+    ctx.closePath();
     ctx.fill();
-    ctx.restore();
-
-    // body
-    const bg = ctx.createRadialGradient(-6, -6, 2, 0, 0, 20);
-    bg.addColorStop(0, "#fff5a0");
-    bg.addColorStop(.5, "#FFD700");
-    bg.addColorStop(1,  "#d48000");
-    ctx.fillStyle = bg;
+    // right fin (top)
     ctx.beginPath();
-    ctx.ellipse(0, 0, 19, 14, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // eye white
-    ctx.shadowBlur  = 0;
-    ctx.fillStyle   = "#fff";
-    ctx.beginPath();
-    ctx.arc(8, -4, 6, 0, Math.PI * 2);
-    ctx.fill();
-
-    // pupil
-    ctx.fillStyle = "#111";
-    ctx.beginPath();
-    ctx.arc(9, -3.5, 3.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // gleam
-    ctx.fillStyle = "#fff";
-    ctx.beginPath();
-    ctx.arc(10, -5, 1.3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // beak
-    ctx.fillStyle = "#ff6600";
-    ctx.beginPath();
-    ctx.moveTo(14, -2);
-    ctx.lineTo(24, .5);
-    ctx.lineTo(14, 3);
+    ctx.moveTo(-2, -6);
+    ctx.lineTo(-12, -14);
+    ctx.lineTo(-2, -11);
     ctx.closePath();
     ctx.fill();
 
+    /* ── Body — metallic fuselage ── */
+    ctx.shadowColor = "#88bbff";
+    ctx.shadowBlur  = 16;
+    const bodyG = ctx.createLinearGradient(-14, -12, 14, 12);
+    bodyG.addColorStop(0,   "#eef4ff");
+    bodyG.addColorStop(.25, "#aaccff");
+    bodyG.addColorStop(.55, "#4477cc");
+    bodyG.addColorStop(.8,  "#224488");
+    bodyG.addColorStop(1,   "#112255");
+    ctx.fillStyle = bodyG;
+    // rounded rectangle body
+    ctx.beginPath();
+    ctx.moveTo(-14,  0);
+    ctx.bezierCurveTo(-14, -12,  -6, -14,  2, -12);
+    ctx.lineTo(18, -4);
+    ctx.bezierCurveTo(22, -2, 22, 2, 18, 4);
+    ctx.lineTo(2, 12);
+    ctx.bezierCurveTo(-6, 14, -14, 12, -14, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    /* ── Nose cone ── */
+    ctx.shadowBlur = 10;
+    const noseG = ctx.createLinearGradient(16, -4, 26, 0);
+    noseG.addColorStop(0,   "#ffffff");
+    noseG.addColorStop(.4,  "#ff5544");
+    noseG.addColorStop(1,   "#cc2200");
+    ctx.fillStyle = noseG;
+    ctx.beginPath();
+    ctx.moveTo(18, -4);
+    ctx.lineTo(28, 0);
+    ctx.lineTo(18, 4);
+    ctx.closePath();
+    ctx.fill();
+
+    /* ── Window / cockpit ── */
+    ctx.shadowBlur  = 0;
+    // outer ring
+    ctx.fillStyle   = "#1a3366";
+    ctx.beginPath();
+    ctx.arc(4, 0, 7.5, 0, Math.PI * 2);
+    ctx.fill();
+    // glass
+    const winG = ctx.createRadialGradient(2, -2, .5, 4, 0, 7);
+    winG.addColorStop(0,   "#cceeff");
+    winG.addColorStop(.4,  "#5599ff");
+    winG.addColorStop(1,   "#002266");
+    ctx.fillStyle = winG;
+    ctx.beginPath();
+    ctx.arc(4, 0, 6, 0, Math.PI * 2);
+    ctx.fill();
+    // gleam
+    ctx.fillStyle   = "rgba(255,255,255,.7)";
+    ctx.beginPath();
+    ctx.arc(2, -2, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    /* ── Panel lines ── */
+    ctx.globalAlpha = .3;
+    ctx.strokeStyle = "#aaccff";
+    ctx.lineWidth   = .8;
+    [[-10, -8, -4, -10], [-10, 8, -4, 10]].forEach(([x1, y1, x2, y2]) => {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+        ctx.stroke();
+    });
+    ctx.globalAlpha = 1;
+
+    /* ── Star decal on body ── */
+    ctx.fillStyle   = "#ffdd44";
+    ctx.shadowColor = "#ffaa00";
+    ctx.shadowBlur  = 5;
+    drawStar(ctx, -6, 0, 4, 2, 5);
+
     ctx.restore();
+}
+
+function drawStar(ctx, cx, cy, outerR, innerR, points) {
+    ctx.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const a = (Math.PI / points) * i - Math.PI / 2;
+        i === 0 ? ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r)
+                : ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
 }
 
 /* Particles */
@@ -530,6 +838,10 @@ function initGame() {
     gameState     = "playing";
 
     buildClouds();
+    buildNebulas();
+    buildPlanets();
+    SHOOTS.length  = 0;
+    lastShootFrame = -300;
 
     document.getElementById("game-over-overlay").classList.add("hidden");
     document.getElementById("game-score").textContent  = "0";
