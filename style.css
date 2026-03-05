@@ -1,0 +1,6 @@
+body { margin: 0; padding: 0; overflow: hidden; background: #70c5ce; font-family: 'Arial', sans-serif; }
+#ui { 
+    position: absolute; top: 20px; left: 20px; color: white; z-index: 10; 
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5); font-size: 20px;
+}
+canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
