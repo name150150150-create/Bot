@@ -92,126 +92,194 @@ let menuRafId = null;
 let menuFrames = 0;
 
 function startMenuAnimation() {
-    const c   = document.getElementById("menuBg");
+    const c    = document.getElementById("menuBg");
     const ctx2 = c.getContext("2d");
-    c.width   = window.innerWidth;
-    c.height  = window.innerHeight;
-
+    c.width    = window.innerWidth;
+    c.height   = window.innerHeight;
     cancelAnimationFrame(menuRafId);
 
-    const stars = Array.from({ length: 100 }, (_, i) => ({
-        x: (i * 173.7 + 31) % c.width,
-        y: (i * 97.3  + 17) % (c.height * .82),
-        r: .4 + (i % 5) * .28,
-        phase: i * .61,
-        color: i % 9 === 0 ? "#aaddff" : i % 7 === 0 ? "#ffddaa" : "#ffffff"
+    // Rain drops
+    const rain = Array.from({ length: 80 }, (_, i) => ({
+        x:     (i * 137.5) % c.width,
+        y:     (i * 97.3)  % c.height,
+        len:   8 + (i % 5) * 4,
+        spd:   6 + (i % 4) * 2,
+        alpha: .15 + (i % 5) * .07
     }));
 
-    const nebulas = [
-        { x: c.width * .25, y: c.height * .18, r: 80,  hue: 220, a: .08 },
-        { x: c.width * .7,  y: c.height * .32, r: 60,  hue: 280, a: .07 },
-        { x: c.width * .5,  y: c.height * .55, r: 100, hue: 200, a: .06 },
-    ];
-
-    const menuShoots = [];
-    let mShootTimer = 0;
+    // Building layout (stable)
+    const BLDS = buildCyberpunkBuildings(c.width, c.height);
 
     function loop() {
         menuFrames++;
-        mShootTimer++;
         ctx2.clearRect(0, 0, c.width, c.height);
 
-        /* ── Deep space sky ── */
-        const sky = ctx2.createLinearGradient(0, 0, 0, c.height);
-        sky.addColorStop(0,   "#00010d");
-        sky.addColorStop(.4,  "#010620");
-        sky.addColorStop(.75, "#020b30");
-        sky.addColorStop(1,   "#030d3a");
-        ctx2.fillStyle = sky;
-        ctx2.fillRect(0, 0, c.width, c.height);
+        const W = c.width, H = c.height;
+        const horizonY = H * .52;
 
-        /* ── Nebulas ── */
-        nebulas.forEach(n => {
-            const ng = ctx2.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r);
-            ng.addColorStop(0,   `hsla(${n.hue},80%,55%,${n.a * 2})`);
-            ng.addColorStop(.5,  `hsla(${n.hue},70%,40%,${n.a})`);
-            ng.addColorStop(1,   "transparent");
-            ctx2.fillStyle = ng;
-            ctx2.beginPath(); ctx2.arc(n.x, n.y, n.r, 0, Math.PI * 2); ctx2.fill();
+        /* ── Night sky gradient ── */
+        const sky = ctx2.createLinearGradient(0, 0, 0, horizonY);
+        sky.addColorStop(0,   "#000510");
+        sky.addColorStop(.5,  "#050d1f");
+        sky.addColorStop(1,   "#0a0820");
+        ctx2.fillStyle = sky;
+        ctx2.fillRect(0, 0, W, horizonY);
+
+        /* ── Moon ── */
+        const mx = W * .82, my = H * .1, mr = W * .055;
+        const moonG = ctx2.createRadialGradient(mx - mr * .3, my - mr * .3, mr * .1, mx, my, mr);
+        moonG.addColorStop(0,   "#fffde8");
+        moonG.addColorStop(.6,  "#e8d888");
+        moonG.addColorStop(1,   "#c8b840");
+        ctx2.shadowColor = "#ffe840"; ctx2.shadowBlur = 40;
+        ctx2.fillStyle   = moonG;
+        ctx2.beginPath(); ctx2.arc(mx, my, mr, 0, Math.PI * 2); ctx2.fill();
+        ctx2.shadowBlur = 0;
+
+        /* ── Moon glow halo ── */
+        const mg = ctx2.createRadialGradient(mx, my, mr, mx, my, mr * 3);
+        mg.addColorStop(0,   "rgba(255,230,80,.1)");
+        mg.addColorStop(1,   "transparent");
+        ctx2.fillStyle = mg;
+        ctx2.beginPath(); ctx2.arc(mx, my, mr * 3, 0, Math.PI * 2); ctx2.fill();
+
+        /* ── Stars (only top portion) ── */
+        for (let i = 0; i < 60; i++) {
+            const sx = (i * 173.7 + 11) % W;
+            const sy = (i * 83.1  + 7)  % (horizonY * .8);
+            const sa = .2 + .6 * Math.abs(Math.sin(menuFrames * .015 + i * .7));
+            ctx2.globalAlpha = sa;
+            ctx2.fillStyle   = i % 6 === 0 ? "#ffe8aa" : "#ffffff";
+            ctx2.fillRect(sx | 0, sy | 0, i % 5 === 0 ? 2 : 1, i % 5 === 0 ? 2 : 1);
+        }
+        ctx2.globalAlpha = 1;
+
+        /* ── Far buildings (silhouette) ── */
+        ctx2.fillStyle = "#08081a";
+        BLDS.far.forEach(b => ctx2.fillRect(b.x, horizonY - b.h, b.w, b.h));
+
+        /* ── Mid buildings with neon windows ── */
+        BLDS.mid.forEach(b => {
+            // building body
+            const bg2 = ctx2.createLinearGradient(b.x, horizonY - b.h, b.x + b.w, horizonY);
+            bg2.addColorStop(0, "#0d0d22");
+            bg2.addColorStop(1, "#080812");
+            ctx2.fillStyle = bg2;
+            ctx2.fillRect(b.x, horizonY - b.h, b.w, b.h);
+
+            // windows
+            b.wins.forEach(w => {
+                const flicker = Math.sin(menuFrames * w.fspd + w.phase) > .7 ? 0 : 1;
+                ctx2.globalAlpha = flicker * (.5 + .5 * Math.sin(menuFrames * .03 + w.phase));
+                ctx2.fillStyle   = w.color;
+                ctx2.shadowColor = w.color;
+                ctx2.shadowBlur  = 6;
+                ctx2.fillRect(b.x + w.ox, horizonY - b.h + w.oy, w.w, w.h);
+            });
+            ctx2.globalAlpha = 1;
+            ctx2.shadowBlur  = 0;
         });
 
-        /* ── Stars ── */
-        stars.forEach(s => {
-            ctx2.globalAlpha = .3 + .7 * Math.abs(Math.sin(menuFrames * .016 + s.phase));
-            ctx2.fillStyle   = s.color;
-            ctx2.beginPath(); ctx2.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx2.fill();
+        /* ── Ground / street ── */
+        const streetG = ctx2.createLinearGradient(0, horizonY, 0, H);
+        streetG.addColorStop(0,   "#0a0818");
+        streetG.addColorStop(.4,  "#080614");
+        streetG.addColorStop(1,   "#040408");
+        ctx2.fillStyle = streetG;
+        ctx2.fillRect(0, horizonY, W, H - horizonY);
+
+        /* ── Street reflections (wet road) ── */
+        BLDS.mid.forEach(b => {
+            b.wins.forEach(w => {
+                ctx2.globalAlpha = .12;
+                ctx2.fillStyle   = w.color;
+                const ry = horizonY + (H - horizonY) * .3;
+                ctx2.fillRect(b.x + w.ox + (Math.sin(menuFrames * .02) * 2), ry, w.w, 3);
+            });
         });
         ctx2.globalAlpha = 1;
 
-        /* ── Saturn planet ── */
-        const px = c.width * .78, py = c.height * .14, pr = c.width * .065;
-        const pg = ctx2.createRadialGradient(px - pr * .3, py - pr * .3, pr * .1, px, py, pr);
-        pg.addColorStop(0,   "#fff4cc"); pg.addColorStop(.5, "#ddaa44"); pg.addColorStop(1, "#665500");
-        ctx2.fillStyle = pg;
-        ctx2.beginPath(); ctx2.arc(px, py, pr, 0, Math.PI * 2); ctx2.fill();
+        /* ── Neon horizon line ── */
         ctx2.save();
-        ctx2.globalAlpha = .6;
-        ctx2.strokeStyle = "#ddaa44"; ctx2.lineWidth = pr * .3;
-        ctx2.beginPath(); ctx2.ellipse(px, py, pr * 1.85, pr * .4, -.25, 0, Math.PI * 2); ctx2.stroke();
+        ctx2.shadowColor = "#ff00cc"; ctx2.shadowBlur = 30;
+        ctx2.strokeStyle = "#ff44dd"; ctx2.lineWidth = 2;
+        ctx2.beginPath(); ctx2.moveTo(0, horizonY); ctx2.lineTo(W, horizonY); ctx2.stroke();
         ctx2.restore();
 
-        /* ── Small planet ── */
-        const p2x = c.width * .14, p2y = c.height * .22, p2r = c.width * .035;
-        const p2g = ctx2.createRadialGradient(p2x - p2r * .3, p2y - p2r * .3, p2r * .1, p2x, p2y, p2r);
-        p2g.addColorStop(0, "#aaffcc"); p2g.addColorStop(.5, "#33aa66"); p2g.addColorStop(1, "#114422");
-        ctx2.fillStyle = p2g;
-        ctx2.beginPath(); ctx2.arc(p2x, p2y, p2r, 0, Math.PI * 2); ctx2.fill();
+        /* ── Rain ── */
+        ctx2.strokeStyle = "#6688ff";
+        ctx2.lineWidth   = 1;
+        rain.forEach(r => {
+            r.y += r.spd;
+            if (r.y > H) { r.y = -r.len; r.x = Math.random() * W; }
+            ctx2.globalAlpha = r.alpha;
+            ctx2.beginPath();
+            ctx2.moveTo(r.x, r.y);
+            ctx2.lineTo(r.x - 1, r.y + r.len);
+            ctx2.stroke();
+        });
+        ctx2.globalAlpha = 1;
 
-        /* ── Shooting stars ── */
-        if (mShootTimer > 180) {
-            mShootTimer = 0;
-            menuShoots.push({
-                x: Math.random() * c.width * .7, y: Math.random() * c.height * .4,
-                vx: 4 + Math.random() * 3, vy: 1.5 + Math.random() * 1.5,
-                life: 35, maxLife: 35
-            });
-        }
-        for (let i = menuShoots.length - 1; i >= 0; i--) {
-            const s = menuShoots[i];
-            s.x += s.vx; s.y += s.vy; s.life--;
-            if (s.life <= 0) { menuShoots.splice(i, 1); continue; }
-            const a2 = s.life / s.maxLife;
-            const sg2 = ctx2.createLinearGradient(s.x, s.y, s.x - s.vx * 10, s.y - s.vy * 10);
-            sg2.addColorStop(0,   `rgba(255,255,255,${a2})`);
-            sg2.addColorStop(1,   "transparent");
-            ctx2.strokeStyle = sg2; ctx2.lineWidth = 1.5 * a2;
-            ctx2.beginPath(); ctx2.moveTo(s.x, s.y); ctx2.lineTo(s.x - s.vx * 10, s.y - s.vy * 10); ctx2.stroke();
-        }
-
-        /* ── Ground ── */
-        const groundY = c.height - 60;
-        const gg = ctx2.createLinearGradient(0, groundY, 0, c.height);
-        gg.addColorStop(0, "#1a1424"); gg.addColorStop(1, "#0a0812");
-        ctx2.fillStyle = gg; ctx2.fillRect(0, groundY, c.width, 60);
-
-        // rocky silhouette
-        ctx2.fillStyle = "#1a1424";
-        ctx2.beginPath(); ctx2.moveTo(0, groundY);
-        const rp = [0,.6,.09,.3,.18,.7,.27,.4,.36,.8,.45,.35,.54,.65,.63,.28,.72,.72,.81,.42,.90,.68,1,.4];
-        for (let i = 0; i < rp.length; i += 2)
-            ctx2.lineTo(rp[i] * c.width, groundY - rp[i+1] * 14);
-        ctx2.lineTo(c.width, groundY); ctx2.closePath(); ctx2.fill();
-
-        // horizon glow
-        ctx2.save();
-        ctx2.shadowColor = "#4488ff"; ctx2.shadowBlur = 24;
-        ctx2.strokeStyle = "#6699ff"; ctx2.lineWidth = 2;
-        ctx2.beginPath(); ctx2.moveTo(0, groundY); ctx2.lineTo(c.width, groundY); ctx2.stroke();
-        ctx2.restore();
+        /* ── Neon signs flicker on buildings ── */
+        const signs = [
+            { x: W * .12, y: horizonY - BLDS.mid[0]?.h * .4 || horizonY - 80, text: "NEON", color: "#ff0088" },
+            { x: W * .6,  y: horizonY - (BLDS.mid[2]?.h * .5 || 100),          text: "BAR",  color: "#00ffcc" },
+        ];
+        signs.forEach(s => {
+            const pulse = .7 + .3 * Math.sin(menuFrames * .08 + s.x);
+            ctx2.globalAlpha = pulse;
+            ctx2.shadowColor = s.color; ctx2.shadowBlur = 18;
+            ctx2.fillStyle   = s.color;
+            ctx2.font        = `bold ${W * .04}px Orbitron, monospace`;
+            ctx2.fillText(s.text, s.x, s.y);
+        });
+        ctx2.globalAlpha = 1; ctx2.shadowBlur = 0;
 
         menuRafId = requestAnimationFrame(loop);
     }
     loop();
+}
+
+function buildCyberpunkBuildings(W, H) {
+    const horizonY = H * .52;
+    const far = [];
+    const mid = [];
+    const neonColors = ["#ff0088","#00ffcc","#ff8800","#aa00ff","#00aaff","#ffff00"];
+
+    // Far silhouette buildings
+    for (let i = 0; i < 18; i++) {
+        far.push({
+            x: i * (W / 17) - 5,
+            w: 18 + (i % 4) * 12,
+            h: 40 + (i % 6) * 30
+        });
+    }
+
+    // Mid detailed buildings
+    const bldCount = 7;
+    for (let i = 0; i < bldCount; i++) {
+        const bw = 28 + (i % 3) * 22;
+        const bh = 80 + (i % 5) * 55;
+        const bx = i * (W / (bldCount - 1)) - bw / 2;
+        const wins = [];
+        const rows = Math.floor(bh / 14);
+        const cols = Math.floor(bw / 10);
+        for (let r = 1; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (Math.random() > .45) {
+                    wins.push({
+                        ox: c * 10 + 3, oy: r * 14 - 10,
+                        w: 5, h: 7,
+                        color:  neonColors[Math.floor(Math.random() * neonColors.length)],
+                        phase: Math.random() * Math.PI * 2,
+                        fspd:  .005 + Math.random() * .02
+                    });
+                }
+            }
+        }
+        mid.push({ x: bx, w: bw, h: bh, wins });
+    }
+    return { far, mid };
 }
 
 /* ═══════════════════════════════════
@@ -273,187 +341,202 @@ function makePipeCapCanvas(w, h) {
    ════════════════════ */
 
 /* ════════════════════════════════
-   BACKGROUND — DEEP SPACE
+   BACKGROUND — CYBERPUNK NIGHT CITY
    ════════════════════════════════ */
 
-// Pre-built star field (stable positions, no per-frame random)
-const STAR_FIELD = Array.from({ length: 120 }, (_, i) => ({
-    x:     (i * 173.7 + 31) % 1,   // 0-1 normalized
-    y:     (i * 97.3  + 17) % 1,
-    r:     .4 + (i % 5) * .28,
-    phase: i * .61,
-    color: i % 9 === 0 ? "#aaddff" : i % 7 === 0 ? "#ffddaa" : "#ffffff"
-}));
+// Static city layout (built once per game session)
+let CITY_BLDS_FAR  = [];
+let CITY_BLDS_MID  = [];
+let CITY_BLDS_NEAR = [];
+let RAIN_DROPS     = [];
+const NEON_COLORS  = ["#ff0088","#00ffcc","#ff8800","#aa00ff","#00aaff","#ff4400","#ffff00"];
 
-// Nebula clouds (static per session, rebuilt on initGame)
-let NEBULAS = [];
-function buildNebulas() {
-    NEBULAS = Array.from({ length: 5 }, (_, i) => ({
-        x:     (.1 + (i * .21)) % 1,
-        y:     .05 + (i * .18) % .65,
-        r:     55 + i * 22,
-        hue:   [200, 280, 320, 180, 260][i],
-        alpha: .06 + i * .012
-    }));
+function buildCityLayout() {
+    const W = canvas.width, H = canvas.height;
+    const groundY = H - GROUND;
+    CITY_BLDS_FAR  = [];
+    CITY_BLDS_MID  = [];
+    CITY_BLDS_NEAR = [];
+    RAIN_DROPS     = [];
+
+    // Far silhouette
+    for (let i = 0; i < 22; i++) {
+        CITY_BLDS_FAR.push({
+            x: i * (W / 20) - 8,
+            w: 20 + (i % 4) * 14,
+            h: 35 + (i % 6) * 28
+        });
+    }
+    // Mid buildings with neon windows
+    for (let i = 0; i < 9; i++) {
+        const bw = 26 + (i % 3) * 20;
+        const bh = 70 + (i % 5) * 50;
+        const bx = i * (W / 8) - bw / 2;
+        const wins = [];
+        const rows = Math.floor(bh / 13);
+        const cols = Math.floor(bw / 9);
+        for (let r = 1; r < rows; r++) {
+            for (let c2 = 0; c2 < cols; c2++) {
+                if (Math.random() > .48) {
+                    wins.push({
+                        ox: c2 * 9 + 2, oy: r * 13 - 9,
+                        w: 4, h: 6,
+                        color: NEON_COLORS[Math.floor(Math.random() * NEON_COLORS.length)],
+                        phase: Math.random() * Math.PI * 2,
+                        fspd: .004 + Math.random() * .015
+                    });
+                }
+            }
+        }
+        CITY_BLDS_MID.push({ x: bx, w: bw, h: bh, wins, scrollFactor: .3 });
+    }
+    // Near buildings (fast parallax, just silhouette)
+    for (let i = 0; i < 6; i++) {
+        CITY_BLDS_NEAR.push({
+            x: i * (W / 5) - 15,
+            w: 35 + (i % 3) * 18,
+            h: 30 + (i % 4) * 20,
+            scrollFactor: .7
+        });
+    }
+    // Rain
+    for (let i = 0; i < 100; i++) {
+        RAIN_DROPS.push({
+            x:     Math.random() * W,
+            y:     Math.random() * H,
+            len:   6 + (i % 5) * 3,
+            spd:   7 + (i % 4) * 2,
+            alpha: .1 + (i % 6) * .04
+        });
+    }
 }
-
-// Planets (static per session)
-let PLANETS = [];
-function buildPlanets() {
-    PLANETS = [
-        { xN: .78, yN: .12, r: 22, hue: 38,  ring: true  },
-        { xN: .14, yN: .22, r: 13, hue: 160, ring: false },
-        { xN: .62, yN: .06, r:  8, hue: 320, ring: false },
-    ];
-}
-
-// Shooting stars
-let SHOOTS = [];
-let lastShootFrame = -300;
 
 function drawBg() {
     const W = canvas.width, H = canvas.height;
     const groundY = H - GROUND;
+    const horizonY = groundY - H * .18;  // city skyline sits above ground
 
-    /* ── Deep space base ── */
-    const sky = ctx.createLinearGradient(0, 0, 0, H);
-    sky.addColorStop(0,    "#00010d");
-    sky.addColorStop(.4,   "#010620");
-    sky.addColorStop(.75,  "#020b30");
-    sky.addColorStop(1,    "#030d3a");
+    /* ── Night sky ── */
+    const sky = ctx.createLinearGradient(0, 0, 0, horizonY);
+    sky.addColorStop(0,   "#000510");
+    sky.addColorStop(.5,  "#04091c");
+    sky.addColorStop(1,   "#090618");
     ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, W, horizonY);
 
-    /* ── Nebulas ── */
-    NEBULAS.forEach(n => {
-        const nx = n.x * W, ny = n.y * H;
-        const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, n.r * (W / 400));
-        ng.addColorStop(0,   `hsla(${n.hue},80%,55%,${n.alpha * 2})`);
-        ng.addColorStop(.5,  `hsla(${n.hue},70%,40%,${n.alpha})`);
-        ng.addColorStop(1,   "transparent");
-        ctx.fillStyle = ng;
-        ctx.beginPath();
-        ctx.arc(nx, ny, n.r * (W / 400), 0, Math.PI * 2);
-        ctx.fill();
+    /* ── Stars ── */
+    for (let i = 0; i < 50; i++) {
+        const sx = (i * 173.7 + 11) % W;
+        const sy = (i * 83.1  + 7)  % (horizonY * .75);
+        ctx.globalAlpha = .2 + .6 * Math.abs(Math.sin(frames * .014 + i * .8));
+        ctx.fillStyle   = i % 7 === 0 ? "#ffe8aa" : "#ffffff";
+        ctx.fillRect(sx | 0, sy | 0, i % 6 === 0 ? 2 : 1, i % 6 === 0 ? 2 : 1);
+    }
+    ctx.globalAlpha = 1;
+
+    /* ── Moon ── */
+    const moonX = W * .85, moonY = H * .08, moonR = W * .045;
+    const moonG = ctx.createRadialGradient(moonX - moonR * .3, moonY - moonR * .3, moonR * .1, moonX, moonY, moonR);
+    moonG.addColorStop(0,   "#fffde8");
+    moonG.addColorStop(.6,  "#e8d888");
+    moonG.addColorStop(1,   "#c8b840");
+    ctx.save();
+    ctx.shadowColor = "#ffe840"; ctx.shadowBlur = 35;
+    ctx.fillStyle   = moonG;
+    ctx.beginPath(); ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    /* ── Far buildings silhouette (no scroll) ── */
+    ctx.fillStyle = "#07071a";
+    CITY_BLDS_FAR.forEach(b => {
+        ctx.fillRect(b.x, horizonY - b.h, b.w, b.h);
     });
 
-    /* ── Stars (twinkle) ── */
-    STAR_FIELD.forEach((s, i) => {
-        const sx = s.x * W;
-        const sy = s.y * groundY * 1.05;
-        if (sy > groundY) return;
-        const alpha = .3 + .7 * Math.abs(Math.sin(frames * .014 + s.phase));
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle   = s.color;
-        ctx.beginPath();
-        ctx.arc(sx, sy, s.r, 0, Math.PI * 2);
-        ctx.fill();
+    /* ── Mid buildings with windows (slow scroll) ── */
+    const midOff = (frames * speed * .18) % (canvas.width * 1.2);
+    CITY_BLDS_MID.forEach((b, bi) => {
+        const bx = ((b.x - midOff * b.scrollFactor) % (W + b.w + 50) + W + b.w + 50) % (W + b.w + 50) - b.w;
+        // building body
+        const bdg = ctx.createLinearGradient(bx, horizonY - b.h, bx + b.w, horizonY);
+        bdg.addColorStop(0, "#0c0c20");
+        bdg.addColorStop(1, "#070710");
+        ctx.fillStyle = bdg;
+        ctx.fillRect(bx, horizonY - b.h, b.w, b.h);
+        // windows
+        b.wins.forEach(w => {
+            const flicker = Math.sin(frames * w.fspd + w.phase) > .75 ? 0 : 1;
+            ctx.globalAlpha = flicker * (.4 + .55 * Math.abs(Math.sin(frames * .025 + w.phase)));
+            ctx.fillStyle   = w.color;
+            ctx.shadowColor = w.color;
+            ctx.shadowBlur  = 5;
+            ctx.fillRect(bx + w.ox, horizonY - b.h + w.oy, w.w, w.h);
+        });
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur  = 0;
+    });
+
+    /* ── Street / ground ── */
+    const streetG = ctx.createLinearGradient(0, horizonY, 0, groundY);
+    streetG.addColorStop(0,   "#08061a");
+    streetG.addColorStop(.6,  "#050410");
+    streetG.addColorStop(1,   "#030308");
+    ctx.fillStyle = streetG;
+    ctx.fillRect(0, horizonY, W, groundY - horizonY);
+
+    /* ── Wet road reflections ── */
+    CITY_BLDS_MID.forEach((b, bi) => {
+        const bx = ((b.x - (frames * speed * .18) * b.scrollFactor) % (W + b.w + 50) + W + b.w + 50) % (W + b.w + 50) - b.w;
+        b.wins.forEach(w => {
+            if (Math.random() > .06) return;
+            ctx.globalAlpha = .08;
+            ctx.fillStyle   = w.color;
+            const ry = horizonY + (groundY - horizonY) * (.3 + Math.random() * .4);
+            ctx.fillRect(bx + w.ox + Math.sin(frames * .03) * 3, ry, w.w * 2, 2);
+        });
     });
     ctx.globalAlpha = 1;
 
-    /* ── Shooting stars ── */
-    if (frames - lastShootFrame > 220 + (Math.random() * 180 | 0)) {
-        lastShootFrame = frames;
-        SHOOTS.push({
-            x: Math.random() * W * .8, y: Math.random() * groundY * .4,
-            vx: 4 + Math.random() * 3, vy: 1.5 + Math.random() * 2,
-            life: 35, maxLife: 35
-        });
-    }
-    for (let i = SHOOTS.length - 1; i >= 0; i--) {
-        const s = SHOOTS[i];
-        s.x += s.vx; s.y += s.vy; s.life--;
-        if (s.life <= 0 || s.x > W || s.y > groundY) { SHOOTS.splice(i, 1); continue; }
-        const a = s.life / s.maxLife;
-        const grad = ctx.createLinearGradient(s.x, s.y, s.x - s.vx * 10, s.y - s.vy * 10);
-        grad.addColorStop(0,   `rgba(255,255,255,${a})`);
-        grad.addColorStop(1,   "transparent");
-        ctx.strokeStyle = grad;
-        ctx.lineWidth   = 1.5 * a;
-        ctx.beginPath();
-        ctx.moveTo(s.x, s.y);
-        ctx.lineTo(s.x - s.vx * 10, s.y - s.vy * 10);
-        ctx.stroke();
-    }
-
-    /* ── Planets ── */
-    PLANETS.forEach(p => {
-        const px = p.xN * W, py = p.yN * groundY;
-        const r  = p.r * (W / 390);
-        ctx.save();
-        // planet glow
-        const glow = ctx.createRadialGradient(px, py, r * .4, px, py, r * 2.2);
-        glow.addColorStop(0,   `hsla(${p.hue},70%,55%,.14)`);
-        glow.addColorStop(1,   "transparent");
-        ctx.fillStyle = glow;
-        ctx.beginPath(); ctx.arc(px, py, r * 2.2, 0, Math.PI * 2); ctx.fill();
-
-        // planet body
-        const pg = ctx.createRadialGradient(px - r * .35, py - r * .35, r * .1, px, py, r);
-        pg.addColorStop(0,   `hsl(${p.hue},60%,75%)`);
-        pg.addColorStop(.5,  `hsl(${p.hue},55%,45%)`);
-        pg.addColorStop(1,   `hsl(${p.hue},50%,20%)`);
-        ctx.fillStyle = pg;
-        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
-
-        // ring (Saturn-style)
-        if (p.ring) {
-            ctx.globalAlpha = .55;
-            ctx.strokeStyle = `hsl(${p.hue},60%,65%)`;
-            ctx.lineWidth   = r * .28;
-            ctx.beginPath();
-            ctx.ellipse(px, py, r * 1.9, r * .45, -.3, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-        ctx.restore();
+    /* ── Near dark buildings (fast, no windows) ── */
+    const nearOff = (frames * speed * .55) % (W * 1.5);
+    ctx.fillStyle = "#040410";
+    CITY_BLDS_NEAR.forEach(b => {
+        const bx = ((b.x - nearOff) % (W + b.w + 60) + W + b.w + 60) % (W + b.w + 60) - b.w;
+        ctx.fillRect(bx, groundY - b.h, b.w, b.h);
     });
 
-    /* ── Asteroid belt / ground ── */
-    const asteroidY = groundY;
-    // dark rocky surface
-    const groundG = ctx.createLinearGradient(0, asteroidY, 0, H);
-    groundG.addColorStop(0,   "#1a1424");
-    groundG.addColorStop(.3,  "#120e1c");
-    groundG.addColorStop(1,   "#0a0812");
-    ctx.fillStyle = groundG;
-    ctx.fillRect(0, asteroidY, W, GROUND);
+    /* ── Ground ── */
+    const gg = ctx.createLinearGradient(0, groundY, 0, H);
+    gg.addColorStop(0,  "#0e0a1e");
+    gg.addColorStop(.4, "#080614");
+    gg.addColorStop(1,  "#040408");
+    ctx.fillStyle = gg;
+    ctx.fillRect(0, groundY, W, GROUND);
 
-    // rocky surface silhouette
-    ctx.fillStyle = "#1a1424";
-    ctx.beginPath();
-    ctx.moveTo(0, asteroidY);
-    const rockPts = [0,.6, .08,.3, .16,.7, .24,.4, .33,.8, .41,.35,
-                     .5,.65, .58,.28, .67,.72, .75,.42, .83,.68, .92,.3, 1,.55];
-    for (let i = 0; i < rockPts.length; i += 2) {
-        ctx.lineTo(rockPts[i] * W, asteroidY - rockPts[i+1] * 14);
-    }
-    ctx.lineTo(W, asteroidY); ctx.closePath(); ctx.fill();
-
-    // neon horizon glow
+    /* ── Horizon neon glow ── */
     ctx.save();
-    ctx.shadowColor = "#4488ff";
-    ctx.shadowBlur  = 28;
-    ctx.strokeStyle = "#6699ff";
-    ctx.lineWidth   = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, asteroidY); ctx.lineTo(W, asteroidY);
-    ctx.stroke();
+    ctx.shadowColor = "#ff00cc"; ctx.shadowBlur = 30;
+    ctx.strokeStyle = "#ff44dd"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, horizonY); ctx.lineTo(W, horizonY); ctx.stroke();
+    // ground line
+    ctx.shadowColor = "#ff00cc"; ctx.shadowBlur = 18;
+    ctx.strokeStyle = "#cc22aa"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(W, groundY); ctx.stroke();
     ctx.restore();
 
-    // subtle space dust streaks on ground
-    ctx.save();
-    ctx.globalAlpha = .18;
+    /* ── Rain ── */
     ctx.strokeStyle = "#4466cc";
-    ctx.lineWidth   = 1;
-    const dustOff = (frames * speed * .4) % 50;
-    for (let x = -dustOff; x < W; x += 50) {
+    ctx.lineWidth   = .8;
+    RAIN_DROPS.forEach(r => {
+        r.y += r.spd;
+        if (r.y > H) { r.y = -r.len; r.x = Math.random() * W; }
+        ctx.globalAlpha = r.alpha;
         ctx.beginPath();
-        ctx.moveTo(x, asteroidY + 8);
-        ctx.lineTo(x + 35, H);
+        ctx.moveTo(r.x, r.y);
+        ctx.lineTo(r.x - .8, r.y + r.len);
         ctx.stroke();
-    }
-    ctx.restore();
-    ctx.shadowBlur = 0;
+    });
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur  = 0;
 }
 
 /* ════════════════════════════════
@@ -838,10 +921,7 @@ function initGame() {
     gameState     = "playing";
 
     buildClouds();
-    buildNebulas();
-    buildPlanets();
-    SHOOTS.length  = 0;
-    lastShootFrame = -300;
+    buildCityLayout();
 
     document.getElementById("game-over-overlay").classList.add("hidden");
     document.getElementById("game-score").textContent  = "0";
@@ -952,11 +1032,17 @@ function triggerDeath() {
 }
 
 async function endGame() {
-    userData.balance += coinsCollected;
+    // VIP x2 multiplier
+    const isVIP     = checkVIP();
+    const multiplier = isVIP ? 2 : 1;
+    const earned     = coinsCollected * multiplier;
+
+    userData.balance += earned;
     if (score > userData.bestScore) userData.bestScore = score;
 
     document.getElementById("go-score").textContent = score;
-    document.getElementById("go-coins").textContent = coinsCollected.toFixed(1);
+    document.getElementById("go-coins").textContent =
+        isVIP ? `${earned.toFixed(1)} 🪙 (x2 VIP!)` : coinsCollected.toFixed(1);
     document.getElementById("go-best").textContent  = userData.bestScore;
 
     setTimeout(() => {
@@ -969,6 +1055,12 @@ async function endGame() {
             bestScore: userData.bestScore
         });
     } catch (e) { /* offline */ }
+}
+
+function checkVIP() {
+    const vipUntil = userData?.vipUntil;
+    if (!vipUntil) return false;
+    return new Date(vipUntil) > new Date();
 }
 
 function stopGame() {
@@ -1012,53 +1104,297 @@ window.openTab = function (tab) {
     const content = document.getElementById("tab-content");
     modal.classList.remove("hidden");
 
-    const T = {
-        ua: { shop: "Магазин", gifts: "Подарунки", friends: "Друзі",   coming: "Скоро",  active: "Активно", share: "Поділитись" },
-        en: { shop: "Shop",    gifts: "Gifts",      friends: "Friends", coming: "Coming Soon", active: "Active", share: "Share Link" },
-        ru: { shop: "Магазин", gifts: "Подарки",    friends: "Друзья",  coming: "Скоро",  active: "Активно", share: "Поделиться" }
-    }[userData?.language || "en"];
+    if (tab === "shop")   renderShop(content);
+    if (tab === "gifts")  renderGifts(content);
+    if (tab === "invite") renderInvite(content);
+};
 
-    if (tab === "shop") {
-        content.innerHTML = `
-            <h2>${T.shop} 🛒</h2>
-            <p>100 Coins = 1 ⭐ Star</p>
-            <button class="modal-btn" disabled>${T.coming}</button>`;
+/* ─── SHOP ─── */
+function renderShop(content) {
+    const isVIP    = checkVIP();
+    const vipUntil = userData?.vipUntil;
+    const vipLabel = isVIP
+        ? `✅ VIP активний до ${new Date(vipUntil).toLocaleDateString()}`
+        : "❌ VIP не активний";
 
-    } else if (tab === "gifts") {
-        const status = appConfig.payouts_enabled ? T.active : T.coming;
-        content.innerHTML = `
-            <h2>${T.gifts} 🎁</h2>
-            <p>Status: <b style="color:#ffd700">${status}</b></p>
-            <div class="gift-list">
-                <div class="gift-item">🌟 15 Stars</div>
-                <div class="gift-item">⭐ 25 Stars</div>
-                <div class="gift-item">💫 100 Stars</div>
-            </div>`;
+    content.innerHTML = `
+    <h2>🛒 Магазин</h2>
 
-    } else if (tab === "invite") {
-        const link = `https://t.me/your_bot_name/app?startapp=ref_${userId}`;
-        content.innerHTML = `
-            <h2>${T.friends} 👥</h2>
-            <p>+50 Coins per invite! 🎉</p>
-            <button class="modal-btn"
-                onclick="tg.openTelegramLink('https://t.me/share/url?url=${encodeURIComponent(link)}')"
-            >${T.share} 🔗</button>`;
+    <!-- Tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:16px">
+        ${["vip","coins","items"].map(t => `
+        <button onclick="shopTab('${t}')"
+            id="stab-${t}"
+            style="flex:1;padding:8px 4px;border-radius:10px;border:1px solid rgba(255,255,255,.15);
+                   background:${t==='vip'?'rgba(255,215,0,.15)':'rgba(255,255,255,.05)'};
+                   color:#fff;font-family:Rajdhani,sans-serif;font-size:.85rem;font-weight:600;cursor:pointer">
+            ${{vip:"👑 VIP", coins:"💰 Монети", items:"🎒 Предмети"}[t]}
+        </button>`).join("")}
+    </div>
+
+    <div id="shop-section">
+        <!-- VIP section shown by default -->
+        <div style="background:linear-gradient(135deg,rgba(255,180,0,.12),rgba(255,100,0,.08));
+                    border:1px solid rgba(255,215,0,.3);border-radius:16px;padding:14px;margin-bottom:12px">
+            <div style="font-size:.8rem;color:var(--gold);font-weight:700;margin-bottom:4px">
+                👑 ТВІЙ VIP СТАТУС
+            </div>
+            <div style="font-size:.85rem;color:#ddd">${vipLabel}</div>
+            <div style="font-size:.75rem;color:var(--text2);margin-top:4px">🎯 VIP дає x2 монет після кожної гри</div>
+        </div>
+
+        ${[
+            { id:"vip_1m", icon:"👑", title:"VIP 1 місяць",  desc:"x2 монет · 30 днів",  stars:100, months:1  },
+            { id:"vip_2m", icon:"👑", title:"VIP 2 місяці",  desc:"x2 монет · 60 днів",  stars:175, months:2, badge:"ВИГОДА" },
+            { id:"vip_3m", icon:"👑", title:"VIP 3 місяці",  desc:"x2 монет · 90 днів",  stars:250, months:3, badge:"BEST"   },
+        ].map(item => `
+        <div style="display:flex;align-items:center;gap:12px;padding:12px;
+                    background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);
+                    border-radius:14px;margin-bottom:8px;position:relative">
+            ${item.badge ? `<span style="position:absolute;top:8px;right:8px;background:var(--gold);
+                color:#000;font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:6px">
+                ${item.badge}</span>` : ""}
+            <span style="font-size:2rem">${item.icon}</span>
+            <div style="flex:1">
+                <div style="font-weight:700">${item.title}</div>
+                <div style="font-size:.75rem;color:var(--text2)">${item.desc}</div>
+            </div>
+            <button onclick="buyVIP(${item.months},${item.stars})"
+                style="padding:8px 14px;background:linear-gradient(135deg,#ffaa00,#ff6600);
+                       border:none;border-radius:50px;color:#000;font-weight:700;
+                       font-size:.85rem;cursor:pointer;white-space:nowrap">
+                ⭐ ${item.stars}
+            </button>
+        </div>`).join("")}
+    </div>`;
+}
+
+window.shopTab = function(tab) {
+    const content = document.getElementById("shop-section");
+    if (!content) return;
+
+    if (tab === "vip") {
+        // re-render shop to show VIP section
+        renderShop(document.getElementById("tab-content"));
+        return;
     }
+
+    if (tab === "coins") {
+        content.innerHTML = [
+            { stars:15,  coins:100,  badge:null        },
+            { stars:60,  coins:550,  badge:"ПОПУЛЯРНЕ" },
+            { stars:100, coins:1200, badge:"ВИГОДА"    },
+        ].map(item => `
+        <div style="display:flex;align-items:center;gap:12px;padding:12px;
+                    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
+                    border-radius:14px;margin-bottom:8px;position:relative">
+            ${item.badge ? `<span style="position:absolute;top:8px;right:8px;background:var(--purple);
+                color:#fff;font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:6px">
+                ${item.badge}</span>` : ""}
+            <span style="font-size:2rem">💰</span>
+            <div style="flex:1">
+                <div style="font-weight:700">${item.coins} монет</div>
+                <div style="font-size:.75rem;color:var(--text2)">${item.stars} ⭐ Stars</div>
+            </div>
+            <button onclick="buyCoins(${item.coins},${item.stars})"
+                style="padding:8px 14px;background:linear-gradient(135deg,var(--purple),var(--purple2));
+                       border:none;border-radius:50px;color:#fff;font-weight:700;
+                       font-size:.85rem;cursor:pointer">
+                ⭐ ${item.stars}
+            </button>
+        </div>`).join("");
+    }
+
+    if (tab === "items") {
+        content.innerHTML = [
+            { id:"extra_life", icon:"💎", title:"+1 Життя",  desc:"Продовжити гру після смерті", stars:5  },
+            { id:"shield",     icon:"🛡️", title:"Щит x3",    desc:"3 захисти від труб",          stars:10 },
+        ].map(item => `
+        <div style="display:flex;align-items:center;gap:12px;padding:12px;
+                    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
+                    border-radius:14px;margin-bottom:8px">
+            <span style="font-size:2rem">${item.icon}</span>
+            <div style="flex:1">
+                <div style="font-weight:700">${item.title}</div>
+                <div style="font-size:.75rem;color:var(--text2)">${item.desc}</div>
+            </div>
+            <button onclick="buyItem('${item.id}',${item.stars})"
+                style="padding:8px 14px;background:linear-gradient(135deg,var(--purple),var(--purple2));
+                       border:none;border-radius:50px;color:#fff;font-weight:700;
+                       font-size:.85rem;cursor:pointer">
+                ⭐ ${item.stars}
+            </button>
+        </div>`).join("");
+    }
+};
+
+window.buyVIP = async function(months, stars) {
+    tg.showConfirm(
+        `Купити VIP на ${months} міс. за ${stars} ⭐ Stars?`,
+        async (ok) => {
+            if (!ok) return;
+            // Without backend — show instruction
+            showToast("⚠️ Потрібен backend. Дивись SETUP.md");
+            // When backend ready:
+            // const fn = httpsCallable(functions, "createStarsInvoice");
+            // const result = await fn({ itemId: `vip_${months}m` });
+            // tg.openInvoice(result.data.invoiceLink, async (status) => {
+            //     if (status === "paid") {
+            //         await refreshUserData();
+            //         showToast("✅ VIP активовано!");
+            //     }
+            // });
+        }
+    );
+};
+
+window.buyCoins = async function(coins, stars) {
+    showToast("⚠️ Потрібен backend. Дивись SETUP.md");
+};
+
+window.buyItem = async function(itemId, stars) {
+    showToast("⚠️ Потрібен backend. Дивись SETUP.md");
+};
+
+/* ─── GIFTS / WITHDRAWAL ─── */
+function renderGifts(content) {
+    const balance   = Math.floor(userData?.balance ?? 0);
+    const RATE      = 200; // 200 монет = 1 Star
+    const maxStars  = Math.floor(balance / RATE);
+    const active    = appConfig.payouts_enabled;
+
+    content.innerHTML = `
+        <h2>💸 Виведення</h2>
+        <div style="background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.2);
+                    border-radius:14px;padding:14px;margin-bottom:16px;text-align:left">
+            <div style="font-size:.75rem;color:var(--text2);margin-bottom:4px">ТВІЙ БАЛАНС</div>
+            <div style="font-family:Orbitron,monospace;font-size:1.5rem;color:var(--gold)">
+                ${balance} 🪙
+            </div>
+            <div style="font-size:.8rem;color:#4af;margin-top:4px">≈ ${maxStars} ⭐ Stars · Курс: ${RATE} 🪙 = 1 ⭐</div>
+        </div>
+        ${[
+            [200,  1,  null      ],
+            [1000, 5,  "ВИГОДА"  ],
+            [2000, 10, null      ],
+            [10000,50, "МАКСИМУМ"],
+        ].map(([coins, stars, badge]) => `
+        <div onclick="${balance>=coins ? `doWithdraw(${coins},${stars})` : ''}"
+             style="display:flex;align-items:center;justify-content:space-between;
+                    padding:11px 14px;margin-bottom:7px;border-radius:12px;
+                    border:1px solid rgba(255,255,255,${balance>=coins?'.14':'.05'});
+                    background:rgba(255,255,255,${balance>=coins?'.05':'.02'});
+                    opacity:${balance>=coins?1:.4};cursor:${balance>=coins?'pointer':'default'}">
+            <span style="color:var(--gold);font-family:Orbitron,monospace;font-size:.9rem">${coins} 🪙</span>
+            <div style="display:flex;align-items:center;gap:8px">
+                ${badge?`<span style="background:var(--purple);color:#fff;font-size:.6rem;
+                    padding:2px 6px;border-radius:6px">${badge}</span>`:""}
+                <span style="color:#4af;font-weight:700;font-size:.95rem">${stars} ⭐</span>
+            </div>
+        </div>`).join("")}
+        <div style="font-size:.72rem;color:var(--text2);line-height:1.6;margin-top:10px">
+            ${active
+                ? "🟢 Виплати активні · Обробка 24–48 год"
+                : "🟡 Виплати тимчасово призупинені"}
+        </div>`;
+}
+
+window.doWithdraw = function(coins, stars) {
+    if (!appConfig.payouts_enabled) return showToast("⚠️ Виплати тимчасово недоступні");
+    tg.showConfirm(
+        `Вивести ${coins} 🪙 → ${stars} ⭐ Stars?`,
+        async (ok) => {
+            if (!ok) return;
+            showToast("⚠️ Потрібен backend. Дивись SETUP.md");
+        }
+    );
+};
+
+/* ─── INVITE ─── */
+function renderInvite(content) {
+    const link     = `https://t.me/Star_Fly_Bot/app?startapp=ref_${userId}`;
+    const refCount = userData?.referralCount ?? 0;
+
+    content.innerHTML = `
+        <h2>👥 Запроси друзів</h2>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+            <div style="flex:1;padding:12px;background:rgba(255,255,255,.04);
+                        border:1px solid rgba(255,255,255,.09);border-radius:14px;text-align:center">
+                <div style="font-family:Orbitron,monospace;font-size:1.4rem;color:var(--gold)">${refCount}</div>
+                <div style="font-size:.7rem;color:var(--text2);margin-top:2px">ЗАПРОШЕНИХ</div>
+            </div>
+            <div style="flex:1;padding:12px;background:rgba(255,255,255,.04);
+                        border:1px solid rgba(255,255,255,.09);border-radius:14px;text-align:center">
+                <div style="font-family:Orbitron,monospace;font-size:1.4rem;color:#4af">${refCount * 50}</div>
+                <div style="font-size:.7rem;color:var(--text2);margin-top:2px">МОНЕТ ЗАРОБЛЕНО</div>
+            </div>
+        </div>
+        <div style="background:rgba(255,215,0,.07);border:1px solid rgba(255,215,0,.2);
+                    border-radius:14px;padding:12px;margin-bottom:16px;text-align:left;
+                    font-size:.85rem;line-height:2;color:#ddd">
+            👤 Друг приєднався → +50 монет тобі<br>
+            🎮 Друг отримує → +10 монет старт<br>
+            ♾️ Без ліміту запрошень
+        </div>
+        <button onclick="shareLink('${encodeURIComponent(link)}')"
+            class="modal-btn" style="width:100%;justify-content:center;margin-bottom:10px">
+            📤 Поділитись посиланням
+        </button>
+        <button onclick="copyLink('${link}')"
+            class="modal-btn" style="width:100%;justify-content:center;
+            background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15);color:var(--text2)">
+            📋 Скопіювати
+        </button>`;
+}
+
+window.shareLink = function(encodedLink) {
+    const text = encodeURIComponent("🚀 Грай у Flappy Coin! Заробляй Telegram Stars!");
+    tg.openTelegramLink(`https://t.me/share/url?url=${encodedLink}&text=${text}`);
+};
+window.copyLink  = function(link) {
+    navigator.clipboard?.writeText(link).then(() => showToast("✅ Посилання скопійовано!"));
 };
 
 window.closeModal = () =>
     document.getElementById("tab-modal").classList.add("hidden");
 
+/* ────── REWARDED AD ────── */
 window.showRewardedAd = async function () {
-    // Replace with real Telegram Ad SDK call when available
-    alert("Ad watched! +5.0 Coins 🎉");
-    userData.balance += 5;
-    document.getElementById("ui-balance").textContent =
-        userData.balance.toFixed(1) + " 🪙";
+    const AdController = window.Adsgram?.init({ blockId: "YOUR_BLOCK_ID" });
+    if (!AdController) {
+        // fallback for testing
+        userData.balance = (userData.balance ?? 0) + 5;
+        document.getElementById("ui-balance").textContent = userData.balance.toFixed(1) + " 🪙";
+        await updateDoc(doc(db, "users", userId), { balance: increment(5) }).catch(() => {});
+        showToast("🎉 +5 монет за перегляд реклами!");
+        return;
+    }
     try {
-        await updateDoc(doc(db, "users", userId), { balance: increment(5) });
-    } catch (e) { /* offline */ }
+        const result = await AdController.show();
+        if (result.done) {
+            userData.balance = (userData.balance ?? 0) + 5;
+            document.getElementById("ui-balance").textContent = userData.balance.toFixed(1) + " 🪙";
+            await updateDoc(doc(db, "users", userId), { balance: increment(5) }).catch(() => {});
+            showToast("🎉 +5 монет за перегляд реклами!");
+        }
+    } catch { showToast("❌ Реклама недоступна, спробуй пізніше"); }
 };
+
+/* ────── TOAST ────── */
+function showToast(msg) {
+    const ex = document.getElementById("toast");
+    if (ex) ex.remove();
+    const t = document.createElement("div");
+    t.id = "toast";
+    t.textContent = msg;
+    t.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+        background:rgba(10,15,40,.95);border:1px solid rgba(34,102,255,.4);color:#fff;
+        padding:12px 22px;border-radius:50px;z-index:999;font-family:Rajdhani,sans-serif;
+        font-size:1rem;font-weight:600;box-shadow:0 4px 24px rgba(34,102,255,.3);
+        white-space:nowrap;max-width:90vw;text-align:center`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
 
 /* ════════════════════
    RESIZE
