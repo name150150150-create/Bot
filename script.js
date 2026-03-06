@@ -1360,7 +1360,7 @@ window.closeModal = () =>
 
 /* ────── REWARDED AD ────── */
 window.showRewardedAd = async function () {
-    const AdController = window.Adsgram?.init({ blockId: "YOUR_BLOCK_ID" });
+    const AdController = window.Adsgram?.init({ blockId: "24451" });
     if (!AdController) {
         // fallback for testing
         userData.balance = (userData.balance ?? 0) + 5;
