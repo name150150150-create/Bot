@@ -1360,16 +1360,8 @@ window.closeModal = () =>
 
 /* ────── REWARDED AD ────── */
 window.showRewardedAd = async function () {
-    const AdController = window.Adsgram?.init({ blockId: "24451" });
-    if (!AdController) {
-        // fallback for testing
-        userData.balance = (userData.balance ?? 0) + 5;
-        document.getElementById("ui-balance").textContent = userData.balance.toFixed(1) + " 🪙";
-        await updateDoc(doc(db, "users", userId), { balance: increment(5) }).catch(() => {});
-        showToast("🎉 +5 монет за перегляд реклами!");
-        return;
-    }
     try {
+        const AdController = window.Adsgram.init({ blockId: "24451" });
         const result = await AdController.show();
         if (result.done) {
             userData.balance = (userData.balance ?? 0) + 5;
@@ -1377,7 +1369,17 @@ window.showRewardedAd = async function () {
             await updateDoc(doc(db, "users", userId), { balance: increment(5) }).catch(() => {});
             showToast("🎉 +5 монет за перегляд реклами!");
         }
-    } catch { showToast("❌ Реклама недоступна, спробуй пізніше"); }
+    } catch (e) {
+        // Якщо Adsgram не завантажився — нараховуємо монети
+        if (!window.Adsgram) {
+            userData.balance = (userData.balance ?? 0) + 5;
+            document.getElementById("ui-balance").textContent = userData.balance.toFixed(1) + " 🪙";
+            await updateDoc(doc(db, "users", userId), { balance: increment(5) }).catch(() => {});
+            showToast("🎉 +5 монет!");
+        } else {
+            showToast("❌ Реклама недоступна, спробуй пізніше");
+        }
+    }
 };
 
 /* ────── TOAST ────── */
